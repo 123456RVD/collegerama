@@ -40,21 +40,45 @@ class Lecture extends React.Component {
 
 
 
-      const videoJsOptions = {
+      const leftVideoJsOptions = {
         autoplay: true,
         controls: !isMobile,
         playbackRates: [0.8, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2, 2.1, 2.2],
         sources: [{
-          src: server + '/lectures/' + id + '/video.mp4',
+          src: server + '/lectures/' + id + '/video1.mp4',
           type: 'video/mp4'
         }]
       
       }
 
-      this.player = videojs(this.videoNode, videoJsOptions, function onPlayerReady() {
+      this.leftPlayer = videojs(this.leftVideoNode, leftVideoJsOptions, function onPlayerReady() {
         console.log('onPlayerReady', this)
         
       });
+
+
+      var http = new XMLHttpRequest();
+      http.open('HEAD', server + '/lectures/' + id + '/video2.mp4', false);
+      http.send();
+      this.secondVideo =  http.status!=404;
+
+      const rightVideoJsOptions = {
+          autoplay: true,
+          controls: false,
+          muted: true,
+          fluid: true,
+          sources: [{
+              src: server + '/lectures/' + id + '/video2.mp4',
+              type: 'video/mp4'
+          }]
+
+      }
+
+      // if(this.secondVideo) {
+          this.rightPlayer = videojs(this.rightVideoNode, rightVideoJsOptions, function onPlayerReady() {
+              console.log('onPlayerReady', this)
+          });
+      // }
 
       const slideVideoOptions = {
         autoplay: true,
@@ -62,7 +86,7 @@ class Lecture extends React.Component {
         muted: true,
         fluid : true,
         sources: [{
-          src: server + '/lectures/' + id + '/slide.mp4',
+          src: server + '/lectures/' + id + '/video0.mp4',
           type: 'video/mp4'
         }]
       
@@ -75,17 +99,18 @@ class Lecture extends React.Component {
 
       this.setState({finalPause : false});
 
-      this.player.on('timeupdate', () => {
-        var time = this.player.currentTime();
+      this.leftPlayer.on('timeupdate', () => {
+        var time = this.leftPlayer.currentTime();
 
-        if (0 < this.player.remainingTimeDisplay()) {
+        if (0 < this.leftPlayer.remainingTimeDisplay()) {
           this.slidePlayer.currentTime(time);
+          this.rightPlayer.currentTime(time);
         }
 
 
-        if (1 > this.player.remainingTime()) {
+        if (1 > this.leftPlayer.remainingTime()) {
           if (!this.state.finalPause) {
-            this.player.pause();
+            this.leftPlayer.pause();
             window.history.back();
             this.setState({finalPause : true});
           }
@@ -96,12 +121,13 @@ class Lecture extends React.Component {
 
       });
 
-      this.player.on('error', (error) => {
+      this.leftPlayer.on('error', (error) => {
         console.log("error",error);
       })
 
-      this.player.on('pause', () => {
+      this.leftPlayer.on('pause', () => {
         this.slidePlayer.pause();
+        this.rightPlayer.pause();
       })
 
       this.slidePlayer.on('error', () => {
@@ -110,7 +136,7 @@ class Lecture extends React.Component {
 
   
 
-      this.setState({player : this.player});
+      this.setState({player : this.leftPlayer});
 
     }
 
@@ -147,8 +173,8 @@ class Lecture extends React.Component {
 
 
     componentWillUnmount() {
-      if (this.player) {
-        this.player.dispose()
+      if (this.leftPlayer) {
+        this.leftPlayer.dispose()
       }
       window.removeEventListener('resize', this.updateDimensions);
     }
@@ -164,7 +190,7 @@ class Lecture extends React.Component {
     handleKeyDown = (event) => {
       var code = event.which;
 
-      if (this.player === null) return;
+      if (this.leftPlayer === null) return;
 
       if (code === 80) {
         this.toggleExtraBig();
@@ -181,11 +207,11 @@ class Lecture extends React.Component {
       if (code === 32) {
 
         try {
-          if (this.player.paused() === false) {
-            this.player.pause();
+          if (this.leftPlayer.paused() === false) {
+            this.leftPlayer.pause();
             return;
           }
-          this.player.play();
+          this.leftPlayer.play();
         } catch (error) {
           if (!error.message.includes("Cannot read property 'paused' of null")) {
             console.log("Player wasn't initialized " + error.message);
@@ -203,8 +229,8 @@ class Lecture extends React.Component {
     setTimePlayer = (deltaTime) => {
       try {
 
-        if (1 < this.player.remainingTime() - deltaTime) {
-          this.player.currentTime(this.player.currentTime() + deltaTime);
+        if (1 < this.leftPlayer.remainingTime() - deltaTime) {
+          this.leftPlayer.currentTime(this.leftPlayer.currentTime() + deltaTime);
         }
 
 
@@ -253,11 +279,17 @@ class Lecture extends React.Component {
                 
               {isMobile ? <Controls></Controls> : null}
 
-              <div className="mb-3 ml-3 videoScreen innerVideoBox position-absolute">
-                  <div data-vjs-player style={videoStyle} >
-                    <video ref={ node => this.videoNode = node } className="video-js"></video>
+                  <div className="mb-3 ml-3 leftVideoScreen innerVideoBox position-absolute">
+                      <div data-vjs-player style={videoStyle} >
+                          <video ref={ node => this.leftVideoNode = node } className="video-js"></video>
+                      </div>
                   </div>
-                </div>
+
+                  <div className="mb-3 ml-3 rightVideoScreen innerVideoBox position-absolute" style={{display: this.secondVideo ? 'block' : 'none' }}>
+                      <div data-vjs-player style={videoStyle} >
+                          <video ref={ node => this.rightVideoNode = node } className="video-js"></video>
+                      </div>
+                  </div>
               </Fullscreen>
 
             </div>
